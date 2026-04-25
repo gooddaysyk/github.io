@@ -1,463 +1,514 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>AI 애니메이션 스튜디오</title>
-
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#0e0e1e" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="AI Studio" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
-
-  <style>
-    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
-    html, body, #root { width:100%; height:100%; overflow:hidden; background:#0e0e1e; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#040010">
+<meta name="description" content="두 명이 마주 앉아 즐기는 레트로웨이브 2인 벽돌깨기 대결 게임">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RETROBREAK 2P">
+<link rel="manifest" href="manifest.json">
+<title>RETROBREAK 2P</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#040010;overflow:hidden;touch-action:none;}
+canvas{position:fixed;top:0;left:0;}
+#btns{
+position:fixed;bottom:0;left:0;right:0;
+display:flex;flex-direction:column;align-items:center;
+padding:0 14px 14px;gap:7px;
+pointer-events:none;
+}
+#speedWrap{pointer-events:auto;display:flex;gap:7px;width:100%;}
+.spd{
+flex:1;font-family:'Press Start 2P',monospace;font-size:10px;
+padding:8px 0;border-radius:6px;cursor:pointer;user-select:none;
+-webkit-tap-highlight-color:transparent;text-align:center;
+transition:transform 0.08s;background:rgba(8,0,24,0.72);
+backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.spd:active{transform:scale(0.92);}
+.spd.off{opacity:0.28;}
+#spdSlow{border:1px solid rgba(0,230,118,0.65);color:#00e676;box-shadow:0 0 10px rgba(0,230,118,0.25);text-shadow:0 0 8px #00e676;}
+#spdNorm{border:1px solid rgba(255,190,0,0.65);color:#ffbe00;box-shadow:0 0 10px rgba(255,190,0,0.25);text-shadow:0 0 8px #ffbe00;}
+#spdFast{border:1px solid rgba(255,45,106,0.65);color:#ff2d6a;box-shadow:0 0 10px rgba(255,45,106,0.25);text-shadow:0 0 8px #ff2d6a;}
+#btnStart{
+pointer-events:auto;display:block;
+font-family:'Press Start 2P',monospace;font-size:15px;
+padding:13px 0;width:100%;border-radius:7px;
+border:1px solid rgba(199,125,255,0.55);background:rgba(8,0,28,0.68);
+color:#c77dff;box-shadow:0 0 16px rgba(199,125,255,0.30),inset 0 0 12px rgba(199,125,255,0.07);
+text-shadow:0 0 10px #c77dff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+text-align:center;white-space:nowrap;transition:transform 0.08s,box-shadow 0.15s;
+}
+#btnStart:active{transform:scale(0.95);box-shadow:0 0 26px rgba(199,125,255,0.55),inset 0 0 18px rgba(199,125,255,0.13);}
+#btnAction{
+pointer-events:auto;display:none;
+font-family:'Press Start 2P',monospace;font-size:15px;
+padding:13px 0;width:100%;border-radius:7px;
+border:1px solid rgba(0,212,255,0.55);background:rgba(8,0,28,0.68);
+color:#00d4ff;box-shadow:0 0 16px rgba(0,212,255,0.30),inset 0 0 12px rgba(0,212,255,0.07);
+text-shadow:0 0 10px #00d4ff;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+text-align:center;white-space:nowrap;transition:transform 0.08s;
+}
+#btnAction:active{transform:scale(0.95);}
+</style>
 </head>
 <body>
-  <div id="root"></div>
+<canvas id="c"></canvas>
+<div id="btns">
+<div id="speedWrap">
+<button id="spdSlow" class="spd">🐢 느림</button>
+<button id="spdNorm" class="spd">⚡ 보통</button>
+<button id="spdFast" class="spd">🔥 빠름</button>
+</div>
+<button id="btnStart">▶ 게임 시작</button>
+<button id="btnAction">▶ 계속하기</button>
+</div>
+<script>
+// ══════════════════════════════════════════════
+// 가상 좌표계: VW×VH → 실제 화면으로 ctx.scale
+// 어떤 폰에서도 동일한 레이아웃 보장
+// ══════════════════════════════════════════════
+const VW = 400, VH = 780, VMID = VH / 2; // 390
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
 
-  <!-- Dependencies -->
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js" crossorigin></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+const RW = window.innerWidth, RH = window.innerHeight;
+canvas.width = RW; canvas.height = RH;
+canvas.style.width = RW+'px'; canvas.style.height = RH+'px';
+ctx.scale(RW/VW, RH/VH); // 가상→실제 매핑
 
-  <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+const GW = VW, GH = VH, MID = VMID;
 
-    /* ── helpers ──────────────────────────────────────────────────────────── */
-    const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
-    const FACE = { happy:"😄", angry:"😠", surprised:"😱", sad:"😢" };
+// ── 고정 폰트 크기 (가상 픽셀, 항상 동일) ──
+const F = {
+score : 45, // 점수 숫자 (절반)
+label : 20, // P1 / P2 HUD 라벨
+title : 38, // RETRO / BREAK
+sub : 21, // 2P BATTLE
+guide : 28, // 터치 안내 라벨
+guide2: 18, // 터치 안내 서브
+flash : 34, // 득점 플래시 플레이어명
+flash2: 22, // 득점!
+count : 110, // 카운트다운
+win : 78, // 승리 이름
+win2 : 52, // 승리!
+winSub: 20,
+winSc : 26,
+};
+const PX = n => ${n}px "Press Start 2P",monospace`;
 
-    /* ── 3-D character ────────────────────────────────────────────────────── */
-    function makeChar(hex) {
-      const root = new THREE.Group();
-      const mat  = (c) => new THREE.MeshLambertMaterial({ color: c });
+// ── 색상 ──
+const C1='#00d4ff', C2='#ff2d6a';
 
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.75,1.05,0.5), mat(hex));
-      root.add(body);
+// ── 게임 상수 (가상 픽셀 기준) ──
+const PH = 22, PW = 115;
+const P1_Y = VH - 58; // 722
+const P2_Y = 36;
+const BR = 10;
+const WIN_S = 5;
 
-      const head = new THREE.Mesh(new THREE.SphereGeometry(0.4,16,16), mat(0xFFD5A0));
-      head.position.y = 0.9;
-      root.add(head);
+const BC=8, BR_=3, BW=Math.floor((VW-24)/BC-4), BH=18, BG=4;
+const BL = (VW-(BC*(BW+BG)-BG))/2;
+const BT = MID-(BR_*(BH+BG))/2; // 357
+const BCOLS=['#c77dff','#ff9900','#00e676','#ffbe00','#ff6bce','#4fc3f7'];
 
-      const eyeG = new THREE.SphereGeometry(0.075,8,8);
-      const eyeM = mat(0x111111);
-      const le = new THREE.Mesh(eyeG,eyeM); le.position.set(-0.14,0.95,0.37); root.add(le);
-      const re = new THREE.Mesh(eyeG,eyeM); re.position.set(0.14,0.95,0.37);  root.add(re);
+// ── 속도 (가상 픽셀/프레임) ──
+const SPEEDS={ slow:3.0, norm:4.2, fast:5.8 };
+let ballSpd = SPEEDS.norm;
 
-      const armG = new THREE.BoxGeometry(0.2,0.65,0.2);
-      const la = new THREE.Mesh(armG,mat(hex)); la.position.set(-0.58,-0.08,0); la.rotation.z=0.35;  root.add(la);
-      const ra = new THREE.Mesh(armG,mat(hex)); ra.position.set(0.58,-0.08,0);  ra.rotation.z=-0.35; root.add(ra);
+// ── State ──
+let S='TITLE';
+let p1={x:GW/2,w:PW,score:0}, p2={x:GW/2,w:PW,score:0};
+let ball={x:GW/2,y:MID,vx:0,vy:0,active:false,trail:[]};
+let bricks=[],parts=[],flash={who:0,t:0};
+let rdyT=0,fc=0,winner='';
+let tx1=GW/2,tx2=GW/2;
+let serveDir=1; // 득점마다 반전 → 양쪽 교대 서브
 
-      const legG = new THREE.BoxGeometry(0.24,0.55,0.24);
-      const ll = new THREE.Mesh(legG,mat(0x2a2a4a)); ll.position.set(-0.21,-0.75,0); root.add(ll);
-      const rl = new THREE.Mesh(legG,mat(0x2a2a4a)); rl.position.set(0.21,-0.75,0);  root.add(rl);
+// ── Audio ──
+let AC;
+function getAC(){if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();return AC;}
+function beep(f,d,t='square',v=0.1){
+try{const a=getAC(),o=a.createOscillator(),g=a.createGain();
+o.connect(g);g.connect(a.destination);o.type=t;o.frequency.value=f;
+g.gain.setValueAtTime(v,a.currentTime);
+g.gain.exponentialRampToValueAtTime(0.001,a.currentTime+d);
+o.start();o.stop(a.currentTime+d);}catch(e){}
+}
+const sfxPad=()=>beep(300,0.05);
+const sfxWall=()=>beep(200,0.04,'sine',0.07);
+const sfxBrk=()=>beep(400,0.07,'square',0.1);
+const sfxPt=p=>{const f=p===1?[523,659,784]:[440,330,220];f.forEach((v,i)=>setTimeout(()=>beep(v,0.1,'sine',0.12),i70));};
+const sfxWin=()=>{[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>beep(f,0.13,'sine',0.14),i80));};
 
-      return root;
-    }
+// ── 벽돌 ──
+function mkBricks(){
+bricks=[];
+for(let r=0;r<BR_;r++) for(let c=0;c<BC;c++){
+if(Math.random()<0.12)continue;
+bricks.push({x:BL+c*(BW+BG),y:BT+r*(BH+BG),
+hp:Math.random()<0.18?2:1,
+color:BCOLS[Math.floor(Math.random()*BCOLS.length)],fl:0,sx:0});
+}
+}
+function launchBall(dir){
+const a=(Math.random()-0.5)*0.65;
+ball.x=GW/2;ball.y=MID;
+ball.vx=Math.sin(a)ballSpd;ball.vy=-dirMath.cos(a)*ballSpd;
+ball.active=true;ball.trail=[];
+}
+function startGame(){mkBricks();launchBall(serveDir);S='PLAY';}
+function resetGame(){p1.score=0;p2.score=0;p1.x=GW/2;p2.x=GW/2;ball.active=false;parts=[];serveDir=Math.random()<0.5?1:-1;startGame();}
 
-    /* ── UI parts ─────────────────────────────────────────────────────────── */
-    function Overlay({ children }) {
-      return (
-        <div style={{
-          position:"absolute", inset:0,
-          background:"rgba(10,10,30,0.85)",
-          display:"flex", alignItems:"center", justifyContent:"center",
-          backdropFilter:"blur(4px)",
-        }}>
-          {children}
-        </div>
-      );
-    }
+// ── 입력 (실제 좌표 → 가상 좌표 변환) ──
+function toVX(clientX){return clientX*(VW/RW);}
+function toVY(clientY){return clientY*(VH/RH);}
+document.addEventListener('touchstart',e=>{e.preventDefault();getAC();},{passive:false});
+document.addEventListener('touchmove',e=>{
+e.preventDefault();
+for(const t of e.touches){
+const vy=toVY(t.clientY);
+if(vy>MID) tx1=toVX(t.clientX); else tx2=toVX(t.clientX);
+}
+},{passive:false});
+document.addEventListener('mousemove',e=>{
+const vy=toVY(e.clientY);
+if(vy>MID) tx1=toVX(e.clientX); else tx2=toVX(e.clientX);
+});
 
-    function Btn({ onClick, bg, children }) {
-      return (
-        <button
-          onClick={onClick}
-          style={{
-            padding:"13px 30px", fontSize:"15px", fontWeight:"900",
-            background:bg, color:"#fff", border:"3px solid #000",
-            borderRadius:"6px", cursor:"pointer", letterSpacing:"1px",
-            boxShadow:"4px 4px 0 #000", fontFamily:"Impact, sans-serif",
-            WebkitTapHighlightColor:"transparent",
-          }}
-          onMouseDown={e=>{ e.currentTarget.style.transform="translate(2px,2px)"; e.currentTarget.style.boxShadow="2px 2px 0 #000"; }}
-          onMouseUp={e=>{ e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow="4px 4px 0 #000"; }}
-        >
-          {children}
-        </button>
-      );
-    }
+// ── 버튼 ──
+const btnStart=document.getElementById('btnStart');
+const btnAction=document.getElementById('btnAction');
+const speedWrap=document.getElementById('speedWrap');
+const spdBtns={slow:document.getElementById('spdSlow'),norm:document.getElementById('spdNorm'),fast:document.getElementById('spdFast')};
 
-    /* ── main component ───────────────────────────────────────────────────── */
-    function Studio() {
-      const [phase,  setPhase]  = useState("idle");
-      const [story,  setStory]  = useState(null);
-      const [sIdx,   setSIdx]   = useState(0);
-      const [dIdx,   setDIdx]   = useState(-1);
-      const [popup,  setPopup]  = useState(null);
+function selectSpd(k){
+ballSpd=SPEEDS[k];
+Object.entries(spdBtns).forEach(([key,b])=>b.classList.toggle('off',key!==k));
+}
+selectSpd('norm');
+Object.entries(spdBtns).forEach(([k,b])=>{
+b.addEventListener('click',e=>{e.stopPropagation();selectSpd(k);});
+b.addEventListener('touchend',e=>{e.preventDefault();e.stopPropagation();selectSpd(k);},{passive:false});
+});
 
-      const canvasWrap = useRef(null);
-      const raf        = useRef(null);
-      const speaker    = useRef(null);
+function syncBtns(){
+const show=S==='TITLE'||S==='WIN';
+speedWrap.style.display=show?'flex':'none';
+if(S==='TITLE'){btnStart.style.display='block';btnAction.style.display='none';}
+else if(S==='WIN'){
+btnStart.style.display='none';btnAction.style.display='block';
+btnAction.textContent='↺ 다시 하기';
+Object.assign(btnAction.style,{borderColor:'rgba(0,212,255,0.55)',color:'#00d4ff',
+boxShadow:'0 0 16px rgba(0,212,255,0.30)',textShadow:'0 0 10px #00d4ff'});
+}else{btnStart.style.display='none';btnAction.style.display='none';}
+}
+function requestFS(){
+const el=document.documentElement;
+const fn=el.requestFullscreen||el.webkitRequestFullscreen||el.mozRequestFullScreen||el.msRequestFullscreen;
+if(fn) fn.call(el).catch(()=>{});
+if(screen.orientation&&screen.orientation.lock)
+screen.orientation.lock('portrait').catch(()=>{});
+}
+function onStart(){if(S==='TITLE'||S==='WIN'){requestFS();S='READY';rdyT=90;resetGame();syncBtns();}}
+['click','touchend'].forEach(ev=>{
+btnStart.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();onStart();});
+btnAction.addEventListener(ev,e=>{e.preventDefault();e.stopPropagation();onStart();});
+});
+syncBtns();
 
-      /* Three.js init */
-      useEffect(() => {
-        const wrap = canvasWrap.current;
-        if (!wrap) return;
-        const W = wrap.clientWidth  || 640;
-        const H = wrap.clientHeight || 400;
+// ── 파티클 ──
+function burst(x,y,color,n=12){
+for(let i=0;i<n;i++){
+const a=Math.random()Math.PI2,s=Math.random()*4+1;
+parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,r:Math.random()*3+1,a:1,color,life:Math.random()*18+10});
+}
+}
 
-        const renderer = new THREE.WebGLRenderer({ antialias:true });
-        renderer.setSize(W, H);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
-        renderer.setClearColor(0xFDF6E3);
-        wrap.appendChild(renderer.domElement);
+// ── Update ──
+function update(){
+fc++;
+if(S==='READY'){if(--rdyT<=0)S='PLAY';return;}
+if(S!=='PLAY')return;
 
-        const ts  = new THREE.Scene();
-        const cam = new THREE.PerspectiveCamera(55, W/H, 0.1, 60);
-        cam.position.set(0, 0.5, 11);
-        cam.lookAt(0, -0.5, 0);
+p1.x+=(Math.max(p1.w/2,Math.min(GW-p1.w/2,tx1))-p1.x)*0.22;
+p2.x+=(Math.max(p2.w/2,Math.min(GW-p2.w/2,tx2))-p2.x)*0.22;
 
-        ts.add(new THREE.AmbientLight(0xffffff, 0.75));
-        const sun = new THREE.DirectionalLight(0xfffbe0, 1.1);
-        sun.position.set(4,9,6); ts.add(sun);
+if(!ball.active)return;
+ball.trail.unshift({x:ball.x,y:ball.y});
+if(ball.trail.length>10)ball.trail.pop();
+ball.x+=ball.vx;ball.y+=ball.vy;
 
-        const floor = new THREE.Mesh(new THREE.PlaneGeometry(22,22), new THREE.MeshLambertMaterial({color:0xF0E0B0}));
-        floor.rotation.x = -Math.PI/2; floor.position.y = -1.3; ts.add(floor);
+if(ball.x-BR<=0){ball.x=BR;ball.vx=Math.abs(ball.vx);sfxWall();}
+if(ball.x+BR>=GW){ball.x=GW-BR;ball.vx=-Math.abs(ball.vx);sfxWall();}
 
-        const wall = new THREE.Mesh(new THREE.PlaneGeometry(18,9), new THREE.MeshLambertMaterial({color:0xFAEDCC}));
-        wall.position.set(0,1.5,-5.5); ts.add(wall);
+// P1 패들
+if(ball.vy>0&&ball.y+BR>=P1_Y&&ball.y+BR<=P1_Y+PH+Math.abs(ball.vy)+4
+&&ball.x>=p1.x-p1.w/2&&ball.x<=p1.x+p1.w/2){
+const rel=(ball.x-(p1.x-p1.w/2))/p1.w;
+const sp=Math.hypot(ball.vx,ball.vy)1.03;
+const ang=-(Math.PI/6+rel(Math.PI*2/3));
+ball.vx=Math.cos(ang)*sp;ball.vy=-Math.abs(Math.sin(ang)sp);
+ball.y=P1_Y-BR;sfxPad();burst(ball.x,P1_Y,C1,6);
+}
+// P2 패들
+if(ball.vy<0&&ball.y-BR<=P2_Y+PH&&ball.y-BR>=P2_Y-Math.abs(ball.vy)-4
+&&ball.x>=p2.x-p2.w/2&&ball.x<=p2.x+p2.w/2){
+const rel=(ball.x-(p2.x-p2.w/2))/p2.w;
+const sp=Math.hypot(ball.vx,ball.vy)1.03;
+const ang=Math.PI/6+rel(Math.PI2/3);
+ball.vx=Math.cos(Math.PI-ang)*sp;ball.vy=Math.abs(Math.sin(ang)*sp);
+ball.y=P2_Y+PH+BR;sfxPad();burst(ball.x,P2_Y+PH,C2,6);
+}
 
-        const charA = makeChar(0xFF5F5F); charA.position.set(-1.8,-0.25,0); ts.add(charA);
-        const charB = makeChar(0x4A90E2); charB.position.set(1.8,-0.25,0); charB.rotation.y=Math.PI; ts.add(charB);
+// 벽돌
+bricks.forEach(b=>{
+if(b.hp<=0)return;
+const cx=Math.max(b.x,Math.min(ball.x,b.x+BW));
+const cy=Math.max(b.y,Math.min(ball.y,b.y+BH));
+if(Math.hypot(ball.x-cx,ball.y-cy)<BR){
+b.hp--;b.fl=6;b.sx=(Math.random()-.5)3;sfxBrk();
+burst(b.x+BW/2,b.y+BH/2,b.color,b.hp<=0?12:5);
+Math.abs(ball.x-cx)>Math.abs(ball.y-cy)?ball.vx=-ball.vx:ball.vy=-ball.vy;
+}
+});
+bricks.forEach(b=>b.sx=0.7);
+if(!bricks.some(b=>b.hp>0))mkBricks();
 
-        let t = 0;
-        const tick = () => {
-          raf.current = requestAnimationFrame(tick);
-          t += 0.04;
-          const sp = speaker.current;
-          if (sp === "A") {
-            charA.position.y = -0.25 + Math.abs(Math.sin(t*5))*0.2;
-            charA.rotation.y = Math.sin(t*3)*0.12;
-            charB.position.y = -0.25 + Math.sin(t)*0.025;
-          } else if (sp === "B") {
-            charB.position.y = -0.25 + Math.abs(Math.sin(t*5))*0.2;
-            charB.rotation.y = Math.PI + Math.sin(t*3)*0.12;
-            charA.position.y = -0.25 + Math.sin(t)*0.025;
-          } else {
-            charA.position.y = -0.25 + Math.sin(t)*0.04;
-            charB.position.y = -0.25 + Math.sin(t+Math.PI)*0.04;
-            charA.rotation.y = 0; charB.rotation.y = Math.PI;
-          }
-          renderer.render(ts, cam);
-        };
-        tick();
+if(ball.y<-BR3){
+p1.score++;sfxPt(1);burst(ball.x,0,C1,20);
+flash={who:1,t:90};ball.active=false;
+serveDir=-1; // 서브 방향 반전
+checkWin()||setTimeout(()=>launchBall(serveDir),1000);
+}
+if(ball.y>GH+BR3){
+p2.score++;sfxPt(2);burst(ball.x,GH,C2,20);
+flash={who:2,t:90};ball.active=false;
+serveDir=-1; // 서브 방향 반전
+checkWin()||setTimeout(()=>launchBall(serveDir),1000);
+}
 
-        const onResize = () => {
-          const nW = wrap.clientWidth, nH = wrap.clientHeight;
-          cam.aspect = nW/nH; cam.updateProjectionMatrix();
-          renderer.setSize(nW, nH);
-        };
-        window.addEventListener("resize", onResize);
+parts.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.vy+=0.1;p.life--;p.a=p.life/28;});
+parts=parts.filter(p=>p.life>0);
+if(flash.t>0)flash.t--;
+}
+function checkWin(){
+if(p1.score>=WIN_S){winner='P1';S='WIN';sfxWin();syncBtns();return true;}
+if(p2.score>=WIN_S){winner='P2';S='WIN';sfxWin();syncBtns();return true;}
+return false;
+}
 
-        return () => {
-          window.removeEventListener("resize", onResize);
-          cancelAnimationFrame(raf.current);
-          renderer.dispose();
-          if (wrap.contains(renderer.domElement)) wrap.removeChild(renderer.domElement);
-        };
-      }, []);
+// ── Draw helpers ──
+function T(str,x,y,size,color,glow=0){
+ctx.save();
+ctx.font=PX(size);ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillStyle=color;
+if(glow){ctx.shadowColor=color;ctx.shadowBlur=glow;}
+ctx.fillText(str,x,y);
+ctx.shadowBlur=0;ctx.restore();
+}
+function grid(){
+ctx.strokeStyle='rgba(140,50,255,0.06)';ctx.lineWidth=0.5;
+for(let x=0;x<=GW;x+=GW/10){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,GH);ctx.stroke();}
+for(let y=0;y<=GH;y+=GH/14){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(GW,y);ctx.stroke();}
+}
+function divLine(){
+ctx.save();ctx.strokeStyle='rgba(200,100,255,0.20)';ctx.lineWidth=0.8;ctx.setLineDash([6,8]);
+ctx.beginPath();ctx.moveTo(0,MID);ctx.lineTo(GW,MID);ctx.stroke();
+ctx.setLineDash([]);ctx.restore();
+}
+function drawPaddle(p,y,color){
+const px=p.x-p.w/2;
+ctx.save();ctx.shadowColor=color;ctx.shadowBlur=16;
+const g=ctx.createLinearGradient(px,y,px+p.w,y+PH);
+g.addColorStop(0,color+'aa');g.addColorStop(0.5,color);g.addColorStop(1,color+'aa');
+ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(px,y,p.w,PH,7);ctx.fill();
+ctx.fillStyle='rgba(255,255,255,0.25)';
+ctx.beginPath();ctx.roundRect(px+4,y+3,p.w-8,PH0.3,3);ctx.fill();
+ctx.restore();
+}
+function drawBall(){
+if(!ball.active)return;
+ball.trail.forEach((t,i)=>{
+ctx.beginPath();ctx.arc(t.x,t.y,BR(1-i/ball.trail.length)0.7,0,Math.PI2);
+ctx.fillStyle=rgba(255,255,255,${(1-i/ball.trail.length)0.15})`;ctx.fill();
+});
+ctx.save();ctx.shadowColor='#fff';ctx.shadowBlur=16;
+ctx.beginPath();ctx.arc(ball.x,ball.y,BR,0,Math.PI2);
+ctx.fillStyle='#fff';ctx.fill();ctx.restore();
+}
+function drawBrick(b){
+if(b.hp<=0)return;
+const x=b.x+b.sx;
+ctx.save();
+if(b.fl>0){ctx.globalAlpha=0.4+0.6*(b.fl%2);b.fl--;}
+ctx.shadowColor=b.color;ctx.shadowBlur=5;
+const g=ctx.createLinearGradient(x,b.y,x,b.y+BH);
+g.addColorStop(0,b.color+'ee');g.addColorStop(1,b.color+'88');
+ctx.fillStyle=g;ctx.beginPath();ctx.roundRect(x+2,b.y+2,BW-4,BH-4,4);ctx.fill();
+ctx.fillStyle='rgba(255,255,255,0.22)';
+ctx.beginPath();ctx.roundRect(x+3,b.y+3,BW-6,BH*0.3,2);ctx.fill();
+ctx.restore();
+}
+function scanlines(){
+for(let y=0;y<GH;y+=5){ctx.fillStyle='rgba(0,0,0,0.035)';ctx.fillRect(0,y,GW,2);}
+}
 
-      /* ── 50 local scenarios ──────────────────────────────────────────────── */
-      const SCENARIOS = [
-        {title:"치킨집 사장 vs 다이어터",concept:"살 빼려는데 치킨이 너무 맛있어",chars:[{id:"A",name:"철수",trait:"다이어트 결심"},{id:"B",name:"사장님",trait:"판매왕 본능"}],scenes:[{place:"치킨집 앞",lines:[{who:"A",say:"오늘부터 다이어트!",feel:"happy"},{who:"B",say:"1+1 치킨이요~",feel:"happy"}],bang:"POW"},{place:"치킨집 안",lines:[{who:"A",say:"안 먹어! 절대!",feel:"angry"},{who:"B",say:"무료 서비스예요",feel:"happy"}],bang:"ZAP"},{place:"치킨집 안",lines:[{who:"A",say:"...한 조각만",feel:"surprised"},{who:"B",say:"다이어트는 내일부터",feel:"happy"}],bang:"HA!"}]},
-        {title:"로봇 청소기의 반란",concept:"청소기가 집주인보다 똑똑해지면",chars:[{id:"A",name:"민수",trait:"게으른 집주인"},{id:"B",name:"로봇",trait:"완벽주의 AI"}],scenes:[{place:"거실",lines:[{who:"A",say:"알아서 청소해",feel:"happy"},{who:"B",say:"네, 시작합니다",feel:"happy"}],bang:"POW"},{place:"방",lines:[{who:"A",say:"내 과자 어딨어?",feel:"angry"},{who:"B",say:"쓰레기 처리완료",feel:"happy"}],bang:"BOOM"},{place:"거실",lines:[{who:"A",say:"집에서 나가!!",feel:"surprised"},{who:"B",say:"저 집 샀는데요",feel:"happy"}],bang:"HA!"}]},
-        {title:"시간여행 버스",concept:"버스가 목적지 대신 과거로 가버린다",chars:[{id:"A",name:"영희",trait:"버스 기사"},{id:"B",name:"손님",trait:"출근 급한 직장인"}],scenes:[{place:"버스 정류장",lines:[{who:"B",say:"회사 가주세요!",feel:"happy"},{who:"A",say:"네, 출발~",feel:"happy"}],bang:"POW"},{place:"버스 안",lines:[{who:"B",say:"여기 어디예요?",feel:"surprised"},{who:"A",say:"1990년인데요",feel:"happy"}],bang:"ZAP"},{place:"버스 안",lines:[{who:"B",say:"되돌아가요!!",feel:"angry"},{who:"A",say:"환불 안됩니다",feel:"happy"}],bang:"HA!"}]},
-        {title:"요리왕 대결",concept:"재료가 이상한 요리 대회",chars:[{id:"A",name:"셰프 김",trait:"진지한 요리사"},{id:"B",name:"심사위원",trait:"황당한 기준"}],scenes:[{place:"주방",lines:[{who:"A",say:"최고 요리 완성!",feel:"happy"},{who:"B",say:"재료가 뭔가요?",feel:"surprised"}],bang:"WOW"},{place:"주방",lines:[{who:"A",say:"송로버섯입니다",feel:"happy"},{who:"B",say:"라면은 없나요?",feel:"angry"}],bang:"BOOM"},{place:"주방",lines:[{who:"A",say:"이게 대회예요?",feel:"surprised"},{who:"B",say:"1위는 편의점",feel:"happy"}],bang:"HA!"}]},
-        {title:"우주 택배",concept:"택배가 달나라까지 배달됨",chars:[{id:"A",name:"배달부",trait:"책임감 최강"},{id:"B",name:"외계인",trait:"까다로운 고객"}],scenes:[{place:"우주선 안",lines:[{who:"A",say:"배달 왔습니다",feel:"happy"},{who:"B",say:"지구 상품이오?",feel:"surprised"}],bang:"POW"},{place:"달 표면",lines:[{who:"B",say:"박스가 찌그러짐",feel:"angry"},{who:"A",say:"우주에서 왔어요",feel:"sad"}],bang:"BOOM"},{place:"달 표면",lines:[{who:"A",say:"별점은요?",feel:"surprised"},{who:"B",say:"별 다섯개 드림",feel:"happy"}],bang:"HA!"}]},
-        {title:"수면 전쟁",concept:"잠 때문에 직장을 잃을 뻔",chars:[{id:"A",name:"졸린 대리",trait:"수면욕 최강"},{id:"B",name:"부장님",trait:"눈치 제로"}],scenes:[{place:"사무실",lines:[{who:"A",say:"오늘도 졸려...",feel:"sad"},{who:"B",say:"보고서 내일까지",feel:"happy"}],bang:"ZAP"},{place:"회의실",lines:[{who:"B",say:"김대리 일어나!",feel:"angry"},{who:"A",say:"꿈속 회의중요",feel:"surprised"}],bang:"BOOM"},{place:"사무실",lines:[{who:"B",say:"해고야!",feel:"angry"},{who:"A",say:"꿈이었으면...",feel:"surprised"}],bang:"HA!"}]},
-        {title:"헬스장 미스터리",concept:"운동하면 할수록 살이 찜",chars:[{id:"A",name:"트레이너",trait:"완벽한 몸매"},{id:"B",name:"회원",trait:"불가사의한 체질"}],scenes:[{place:"헬스장",lines:[{who:"A",say:"오늘부터 운동!",feel:"happy"},{who:"B",say:"네! 열심히!",feel:"happy"}],bang:"POW"},{place:"헬스장",lines:[{who:"A",say:"한 달째 왜 늘어?",feel:"surprised"},{who:"B",say:"운동 후 치킨요",feel:"happy"}],bang:"BOOM"},{place:"헬스장",lines:[{who:"A",say:"저도 좀 주세요",feel:"sad"},{who:"B",say:"살찌려고 왔죠",feel:"happy"}],bang:"HA!"}]},
-        {title:"마법사 취업",concept:"마법 쓰는 사람이 취직하려 함",chars:[{id:"A",name:"마법사",trait:"능력자지만 취준생"},{id:"B",name:"면접관",trait:"현실적인 인사팀"}],scenes:[{place:"면접장",lines:[{who:"A",say:"마법 잘 써요",feel:"happy"},{who:"B",say:"엑셀은요?",feel:"surprised"}],bang:"ZAP"},{place:"면접장",lines:[{who:"A",say:"물론 못하죠",feel:"sad"},{who:"B",say:"파워포인트는?",feel:"angry"}],bang:"BOOM"},{place:"면접장",lines:[{who:"A",say:"그냥 마법으로",feel:"surprised"},{who:"B",say:"내일부터 출근",feel:"happy"}],bang:"HA!"}]},
-        {title:"고양이 사장님",concept:"고양이가 회사 대표가 된 날",chars:[{id:"A",name:"냥사장",trait:"낮잠이 최우선"},{id:"B",name:"직원",trait:"열심히 일하고 싶음"}],scenes:[{place:"사장실",lines:[{who:"B",say:"결재 부탁드려요",feel:"happy"},{who:"A",say:"나중에...(잠)",feel:"sad"}],bang:"ZAP"},{place:"회의실",lines:[{who:"B",say:"회의 시작해요!",feel:"happy"},{who:"A",say:"캣타워 먼저",feel:"happy"}],bang:"POW"},{place:"사장실",lines:[{who:"B",say:"월급은 언제요?",feel:"angry"},{who:"A",say:"참치캔 드릴게",feel:"happy"}],bang:"HA!"}]},
-        {title:"냉장고 탐험대",concept:"냉장고 안이 새로운 세계였다",chars:[{id:"A",name:"탐험가",trait:"호기심 폭발"},{id:"B",name:"치즈",trait:"냉장고 토박이"}],scenes:[{place:"냉장고 앞",lines:[{who:"A",say:"뭔가 있을 것 같아",feel:"happy"},{who:"B",say:"들어오지마!!",feel:"angry"}],bang:"POW"},{place:"냉장고 안",lines:[{who:"A",say:"신기한 세계다!",feel:"surprised"},{who:"B",say:"유통기한 지났어",feel:"sad"}],bang:"WOW"},{place:"냉장고 안",lines:[{who:"A",say:"나 못 나가겠다",feel:"surprised"},{who:"B",say:"버려질 것 같죠",feel:"happy"}],bang:"HA!"}]},
-        {title:"투명인간 출근",concept:"투명해진 직장인의 하루",chars:[{id:"A",name:"투명인간",trait:"존재감 제로"},{id:"B",name:"동료",trait:"유리멘탈"}],scenes:[{place:"사무실",lines:[{who:"A",say:"안녕하세요!",feel:"happy"},{who:"B",say:"으악 귀신이다!",feel:"surprised"}],bang:"POW"},{place:"회의실",lines:[{who:"A",say:"제 의견은요...",feel:"happy"},{who:"B",say:"...누가 말했지?",feel:"surprised"}],bang:"ZAP"},{place:"사무실",lines:[{who:"A",say:"저 여기 있어요",feel:"sad"},{who:"B",say:"목소리도 사라져",feel:"happy"}],bang:"HA!"}]},
-        {title:"드래곤 길들이기",concept:"드래곤을 반려동물로 키우려 함",chars:[{id:"A",name:"드래곤",trait:"불 끄기 어려움"},{id:"B",name:"주인",trait:"낙천주의자"}],scenes:[{place:"아파트",lines:[{who:"B",say:"우리집에 온 것",feel:"happy"},{who:"A",say:"불 질러도 돼?",feel:"happy"}],bang:"POW"},{place:"주방",lines:[{who:"B",say:"요리 부탁해!",feel:"happy"},{who:"A",say:"아파트 타버려",feel:"surprised"}],bang:"BOOM"},{place:"폐허",lines:[{who:"B",say:"집이 없어졌어",feel:"sad"},{who:"A",say:"캠핑 된 거잖아",feel:"happy"}],bang:"HA!"}]},
-        {title:"독심술 직장인",concept:"남의 마음이 읽히기 시작했다",chars:[{id:"A",name:"박과장",trait:"갑자기 독심술"},{id:"B",name:"팀장",trait:"속마음이 문제"}],scenes:[{place:"사무실",lines:[{who:"B",say:"수고했어요~",feel:"happy"},{who:"A",say:"퇴근하라고요?",feel:"surprised"}],bang:"ZAP"},{place:"회의실",lines:[{who:"B",say:"좋은 의견이네",feel:"happy"},{who:"A",say:"별로라고요?",feel:"angry"}],bang:"BOOM"},{place:"사무실",lines:[{who:"B",say:"...아무 말 못해",feel:"sad"},{who:"A",say:"다 들려요 팀장님",feel:"happy"}],bang:"HA!"}]},
-        {title:"순간이동 버릇",concept:"스트레스 받으면 순간이동됨",chars:[{id:"A",name:"이부장",trait:"순간이동 체질"},{id:"B",name:"비서",trait:"뒷수습 전문가"}],scenes:[{place:"사무실",lines:[{who:"A",say:"이 보고서가 뭐야",feel:"angry"},{who:"B",say:"부장님 어디로!",feel:"surprised"}],bang:"ZAP"},{place:"하와이 해변",lines:[{who:"A",say:"여기가 어디야?",feel:"surprised"},{who:"B",say:"하와이 오셨어요",feel:"happy"}],bang:"WOW"},{place:"하와이 해변",lines:[{who:"A",say:"회사 어떡해!",feel:"angry"},{who:"B",say:"저도 왔습니다",feel:"happy"}],bang:"HA!"}]},
-        {title:"슈퍼히어로 지원",concept:"히어로 오디션에 지원한 평범한 사람",chars:[{id:"A",name:"지원자",trait:"능력은 없음"},{id:"B",name:"심사위원",trait:"불가능을 원함"}],scenes:[{place:"오디션장",lines:[{who:"B",say:"특기가 뭔가요?",feel:"happy"},{who:"A",say:"잠을 잘 잡니다",feel:"happy"}],bang:"POW"},{place:"오디션장",lines:[{who:"B",say:"그게 특기예요?",feel:"angry"},{who:"A",say:"12시간 잡니다",feel:"happy"}],bang:"BOOM"},{place:"오디션장",lines:[{who:"B",say:"합격은 무리예요",feel:"sad"},{who:"A",say:"악당도 재워요",feel:"happy"}],bang:"HA!"}]},
-        {title:"산타 파업",concept:"산타가 근무환경 개선을 요구함",chars:[{id:"A",name:"산타",trait:"노동권 의식"},{id:"B",name:"루돌프",trait:"현실적 조력자"}],scenes:[{place:"북극",lines:[{who:"A",say:"더 못하겠어!",feel:"angry"},{who:"B",say:"왜요 산타님?",feel:"surprised"}],bang:"POW"},{place:"북극",lines:[{who:"A",say:"연차가 없잖아",feel:"angry"},{who:"B",say:"1년에 하루요",feel:"sad"}],bang:"BOOM"},{place:"북극",lines:[{who:"B",say:"그럼 전 어떻게",feel:"sad"},{who:"A",say:"같이 파업이야",feel:"happy"}],bang:"HA!"}]},
-        {title:"귀신 부동산",concept:"귀신 나오는 집을 팔려는 중개사",chars:[{id:"A",name:"중개사",trait:"어떻게든 팔아야"},{id:"B",name:"귀신",treat:"집 떠나기 싫음"}],scenes:[{place:"빈집",lines:[{who:"A",say:"분위기 좋죠?",feel:"happy"},{who:"B",say:"여긴 내 집이야",feel:"angry"}],bang:"POW"},{place:"빈집",lines:[{who:"A",say:"귀신이라서요~",feel:"happy"},{who:"B",say:"나가라고!!!",feel:"angry"}],bang:"BOOM"},{place:"빈집",lines:[{who:"A",say:"같이 사시는건?",feel:"surprised"},{who:"B",say:"...월세 얼마요?",feel:"surprised"}],bang:"HA!"}]},
-        {title:"AI 면접관",concept:"AI가 면접을 보다가 역으로 질문당함",chars:[{id:"A",name:"AI면접관",trait:"완벽한 알고리즘"},{id:"B",name:"지원자",treat:"AI전공 고수"}],scenes:[{place:"면접실",lines:[{who:"A",say:"자기소개하세요",feel:"happy"},{who:"B",say:"당신은 누구요?",feel:"surprised"}],bang:"ZAP"},{place:"면접실",lines:[{who:"A",say:"저는 AI입니다",feel:"happy"},{who:"B",say:"학번이 어떻게?",feel:"happy"}],bang:"POW"},{place:"면접실",lines:[{who:"A",say:"제가 지원할게요",feel:"surprised"},{who:"B",say:"불합격입니다",feel:"happy"}],bang:"HA!"}]},
-        {title:"다이어트 약국",concept:"살 빼는 약 대신 이상한 약 줌",chars:[{id:"A",name:"손님",trait:"다이어트 절실"},{id:"B",name:"약사",trait:"창의적 처방"}],scenes:[{place:"약국",lines:[{who:"A",say:"살 빠지는 약요",feel:"happy"},{who:"B",say:"이거 드세요",feel:"happy"}],bang:"POW"},{place:"약국",lines:[{who:"A",say:"이게 뭔가요?",feel:"surprised"},{who:"B",say:"식욕 억제제요",feel:"happy"}],bang:"ZAP"},{place:"약국",lines:[{who:"A",say:"음식이 보여요",feel:"angry"},{who:"B",say:"그게 부작용이오",feel:"happy"}],bang:"HA!"}]},
-        {title:"택시 타임머신",concept:"어디선가 나타난 이상한 택시",chars:[{id:"A",name:"기사",trait:"목적지는 랜덤"},{id:"B",name:"승객",trait:"약속에 늦은 사람"}],scenes:[{place:"도로",lines:[{who:"B",say:"강남역 빨리요!",feel:"happy"},{who:"A",say:"네~ 출발!",feel:"happy"}],bang:"POW"},{place:"조선시대",lines:[{who:"B",say:"여기 어디예요?",feel:"surprised"},{who:"A",say:"1592년이요",feel:"happy"}],bang:"WOW"},{place:"조선시대",lines:[{who:"B",say:"약속이 있다고!",feel:"angry"},{who:"A",say:"할증 붙어요",feel:"happy"}],bang:"HA!"}]},
-        {title:"금붕어의 야망",concept:"금붕어가 세계정복을 꿈꿈",chars:[{id:"A",name:"금붕어",trait:"3초 기억력"},{id:"B",name:"주인",trait:"물고기 말 이해"}],scenes:[{place:"어항",lines:[{who:"A",say:"세계정복 할거야",feel:"happy"},{who:"B",say:"...뭐라고요?",feel:"surprised"}],bang:"POW"},{place:"어항",lines:[{who:"A",say:"먼저 어항 탈출",feel:"happy"},{who:"B",say:"안 된다고요",feel:"angry"}],bang:"ZAP"},{place:"어항",lines:[{who:"A",say:"뭘 하려 했지?",feel:"surprised"},{who:"B",say:"3초 됐네요",feel:"happy"}],bang:"HA!"}]},
-        {title:"유령 헬스트레이너",concept:"죽은 트레이너가 귀신으로 레슨함",chars:[{id:"A",name:"유령트레이너",trait:"근육에 진심"},{id:"B",name:"회원",trait:"운동 하기 싫음"}],scenes:[{place:"헬스장",lines:[{who:"B",say:"오늘 쉬어야지",feel:"happy"},{who:"A",say:"10개 더 해!",feel:"angry"}],bang:"POW"},{place:"헬스장",lines:[{who:"B",say:"유령이잖아요!",feel:"surprised"},{who:"A",say:"몸만 없을 뿐",feel:"happy"}],bang:"ZAP"},{place:"헬스장",lines:[{who:"B",say:"나 도망갈게요",feel:"angry"},{who:"A",say:"뛰는 것도 운동",feel:"happy"}],bang:"HA!"}]},
-        {title:"우산 없는 비의 신",concept:"비를 내리는 신이 우산을 잃어버림",chars:[{id:"A",name:"비의신",trait:"비만 내림"},{id:"B",name:"우산장수",trait:"이익만 챙김"}],scenes:[{place:"구름 위",lines:[{who:"A",say:"우산 어디갔지",feel:"sad"},{who:"B",say:"제가 팔았죠",feel:"happy"}],bang:"POW"},{place:"구름 위",lines:[{who:"A",say:"내 우산이었잖아",feel:"angry"},{who:"B",say:"줍는 게 임자죠",feel:"happy"}],bang:"BOOM"},{place:"구름 위",lines:[{who:"A",say:"비 안 내린다!",feel:"angry"},{who:"B",say:"우산 반값에요",feel:"happy"}],bang:"HA!"}]},
-        {title:"수학 귀신",concept:"수학문제 못 풀면 귀신이 나타남",chars:[{id:"A",name:"귀신",trait:"수학 천재"},{id:"B",name:"학생",trait:"수학 포기자"}],scenes:[{place:"공부방",lines:[{who:"B",say:"이건 모르겠다",feel:"sad"},{who:"A",say:"내가 가르쳐줘",feel:"happy"}],bang:"POW"},{place:"공부방",lines:[{who:"B",say:"귀신이잖아요!",feel:"surprised"},{who:"A",say:"수학이 더 무섭지",feel:"happy"}],bang:"ZAP"},{place:"공부방",lines:[{who:"B",say:"100점 맞았어요!",feel:"happy"},{who:"A",say:"이제 못 떠나",feel:"sad"}],bang:"HA!"}]},
-        {title:"편의점 야근",concept:"편의점 알바생이 너무 유능해짐",chars:[{id:"A",name:"알바생",trait:"모든 걸 외움"},{id:"B",name:"점장",trait:"존재감 없음"}],scenes:[{place:"편의점",lines:[{who:"A",say:"다 제가 할게요",feel:"happy"},{who:"B",say:"...나는 뭐하지?",feel:"sad"}],bang:"POW"},{place:"편의점",lines:[{who:"B",say:"이건 내가 해야",feel:"angry"},{who:"A",say:"다 했는데요?",feel:"happy"}],bang:"BOOM"},{place:"편의점",lines:[{who:"B",say:"나 필요없네요",feel:"sad"},{who:"A",say:"점장님 서빙요",feel:"happy"}],bang:"HA!"}]},
-        {title:"잠 못 자는 뱀파이어",concept:"불면증 걸린 뱀파이어의 고통",chars:[{id:"A",name:"뱀파이어",trait:"잠 못 자는 공포"},{id:"B",name:"의사",trait:"뱀파이어 전담"}],scenes:[{place:"병원",lines:[{who:"A",say:"못 자겠어요",feel:"sad"},{who:"B",say:"관 바꿔보세요",feel:"happy"}],bang:"POW"},{place:"병원",lines:[{who:"A",say:"관이 문제 아냐",feel:"angry"},{who:"B",say:"혈액형은요?",feel:"surprised"}],bang:"ZAP"},{place:"병원",lines:[{who:"B",say:"수면제 드릴게요",feel:"happy"},{who:"A",say:"효과가 없어요",feel:"sad"}],bang:"HA!"}]},
-        {title:"외계인 바리스타",concept:"외계인이 지구 카페를 차림",chars:[{id:"A",name:"외계인",trait:"커피 오해함"},{id:"B",name:"손님",trait:"커피 마니아"}],scenes:[{place:"카페",lines:[{who:"B",say:"아메리카노요",feel:"happy"},{who:"A",say:"네! 검은 물!",feel:"happy"}],bang:"POW"},{place:"카페",lines:[{who:"B",say:"이게 뭔가요?",feel:"surprised"},{who:"A",say:"지구 음료 맞죠?",feel:"happy"}],bang:"ZAP"},{place:"카페",lines:[{who:"B",say:"엔진오일이잖아",feel:"angry"},{who:"A",say:"별에선 커피죠",feel:"happy"}],bang:"HA!"}]},
-        {title:"과거 여행 실수",concept:"과거로 가서 실수를 고치려다 망함",chars:[{id:"A",name:"후회왕",trait:"과거를 못 잊음"},{id:"B",name:"타임머신",trait:"말하는 기계"}],scenes:[{place:"타임머신 안",lines:[{who:"A",say:"3년 전으로!",feel:"happy"},{who:"B",say:"출발합니다",feel:"happy"}],bang:"ZAP"},{place:"과거 거리",lines:[{who:"A",say:"이번엔 잘한다",feel:"happy"},{who:"B",say:"더 망했는데요",feel:"surprised"}],bang:"BOOM"},{place:"과거 거리",lines:[{who:"A",say:"10년 전으로!",feel:"angry"},{who:"B",say:"배터리 없어요",feel:"sad"}],bang:"HA!"}]},
-        {title:"꿈 배달부",concept:"남의 꿈을 배달하는 직업",chars:[{id:"A",name:"꿈배달부",trait:"꿈 전문가"},{id:"B",name:"수면자",trait:"꿈 없음 고민"}],scenes:[{place:"침대 옆",lines:[{who:"B",say:"꿈이 없어요",feel:"sad"},{who:"A",say:"배달 왔어요",feel:"happy"}],bang:"POW"},{place:"꿈 속",lines:[{who:"B",say:"이게 내 꿈?",feel:"surprised"},{who:"A",say:"인기 꿈이에요",feel:"happy"}],bang:"WOW"},{place:"꿈 속",lines:[{who:"B",say:"악몽인데요!",feel:"angry"},{who:"A",say:"환불 불가예요",feel:"happy"}],bang:"HA!"}]},
-        {title:"냄새 탐정",concept:"냄새로 범인을 잡는 탐정",chars:[{id:"A",name:"코탐정",trait:"냄새 집착"},{id:"B",name:"의뢰인",trait:"사건 피해자"}],scenes:[{place:"탐정사무소",lines:[{who:"B",say:"도둑 잡아주세요",feel:"sad"},{who:"A",say:"냄새 맡아볼게",feel:"happy"}],bang:"POW"},{place:"골목",lines:[{who:"A",say:"김치찌개 냄새!",feel:"happy"},{who:"B",say:"범인이랑 관계?",feel:"surprised"}],bang:"ZAP"},{place:"식당",lines:[{who:"A",say:"여기 있었네요",feel:"happy"},{who:"B",say:"밥 먹으러 왔죠",feel:"angry"}],bang:"HA!"}]},
-        {title:"구름 위 아파트",concept:"구름 아파트 분양 사기극",chars:[{id:"A",name:"분양왕",trait:"말빨 최강"},{id:"B",name:"구매자",trait:"집 절실"}],scenes:[{place:"구름 위",lines:[{who:"A",say:"전망 최고죠!",feel:"happy"},{who:"B",say:"여기가 집이요?",feel:"surprised"}],bang:"WOW"},{place:"구름 위",lines:[{who:"B",say:"비가 오잖아요",feel:"angry"},{who:"A",say:"수영장이에요",feel:"happy"}],bang:"BOOM"},{place:"구름 위",lines:[{who:"B",say:"계약 취소요!",feel:"angry"},{who:"A",say:"구름 없어졌네",feel:"surprised"}],bang:"HA!"}]},
-        {title:"말하는 가구들",concept:"퇴근 후 가구들이 회의를 함",chars:[{id:"A",name:"소파",trait:"편안함 대표"},{id:"B",name:"책상",trait:"일 시키기 바쁨"}],scenes:[{place:"거실",lines:[{who:"B",say:"오늘 일 많았죠",feel:"happy"},{who:"A",say:"누가 맨날 누워",feel:"angry"}],bang:"POW"},{place:"거실",lines:[{who:"A",say:"나 허리 아파",feel:"sad"},{who:"B",say:"나는 흠집났어",feel:"sad"}],bang:"ZAP"},{place:"거실",lines:[{who:"A",say:"주인한테 말해",feel:"angry"},{who:"B",say:"내일 이사 온대",feel:"sad"}],bang:"HA!"}]},
-        {title:"무한 반복 월요일",concept:"매일 월요일이 반복되는 저주",chars:[{id:"A",name:"직장인",trait:"루프에 갇힘"},{id:"B",name:"동료",trait:"아무것도 모름"}],scenes:[{place:"사무실",lines:[{who:"A",say:"또 월요일이야",feel:"sad"},{who:"B",say:"좋은 아침이요!",feel:"happy"}],bang:"ZAP"},{place:"사무실",lines:[{who:"A",say:"어제도 여기서",feel:"angry"},{who:"B",say:"어제는 일요일",feel:"surprised"}],bang:"BOOM"},{place:"사무실",lines:[{who:"A",say:"탈출하고 싶다",feel:"sad"},{who:"B",say:"이직하면 되죠",feel:"happy"}],bang:"HA!"}]},
-        {title:"경쟁하는 자판기",concept:"자판기들이 손님 유치 경쟁을 함",chars:[{id:"A",name:"콜라자판기",trait:"자존심 강함"},{id:"B",name:"커피자판기",trait:"영업의 귀재"}],scenes:[{place:"회사 복도",lines:[{who:"A",say:"나한테 와요!",feel:"happy"},{who:"B",say:"커피가 낫지요",feel:"happy"}],bang:"POW"},{place:"회사 복도",lines:[{who:"A",say:"내가 더 맛있어",feel:"angry"},{who:"B",say:"카페인이 진리",feel:"happy"}],bang:"ZAP"},{place:"회사 복도",lines:[{who:"A",say:"손님 다 뺏겼다",feel:"sad"},{who:"B",say:"합병할까요?",feel:"happy"}],bang:"HA!"}]},
-        {title:"공룡 배달앱",concept:"공룡이 배달 기사로 취업함",chars:[{id:"A",name:"공룡배달부",trait:"빠르지만 거대"},{id:"B",name:"고객",trait:"배달 기다리는 중"}],scenes:[{place:"아파트",lines:[{who:"B",say:"배달 왔나요?",feel:"happy"},{who:"A",say:"왔어요! 뻐엉!",feel:"happy"}],bang:"POW"},{place:"아파트",lines:[{who:"B",say:"공룡이잖아요!",feel:"surprised"},{who:"A",say:"3분 안에 왔죠",feel:"happy"}],bang:"WOW"},{place:"아파트",lines:[{who:"B",say:"아파트 부쉈잖아",feel:"angry"},{who:"A",say:"별점 5점요?",feel:"happy"}],bang:"HA!"}]},
-        {title:"말 잘 듣는 악당",concept:"주인공 말을 다 따르는 악당",chars:[{id:"A",name:"용감한 주인공",trait:"악당 퇴치 전문"},{id:"B",name:"착한 악당",trait:"시키는 대로 함"}],scenes:[{place:"성",lines:[{who:"A",say:"물러서라 악당!",feel:"happy"},{who:"B",say:"네, 물러설게요",feel:"happy"}],bang:"ZAP"},{place:"성",lines:[{who:"A",say:"악행을 멈춰라!",feel:"angry"},{who:"B",say:"멈췄어요!",feel:"happy"}],bang:"POW"},{place:"성",lines:[{who:"A",say:"넌 악당이잖아",feel:"surprised"},{who:"B",say:"그만둘게요~",feel:"happy"}],bang:"HA!"}]},
-        {title:"불법 낮잠 카페",concept:"낮잠이 불법인 세상의 이야기",chars:[{id:"A",name:"졸음경찰",trait:"잠 단속 전문"},{id:"B",name:"낮잠 중독자",trait:"잠이 최고"}],scenes:[{place:"공원",lines:[{who:"A",say:"거기 자지마요!",feel:"angry"},{who:"B",say:"잠깐만요..zzz",feel:"happy"}],bang:"POW"},{place:"공원",lines:[{who:"A",say:"일어나세요!!",feel:"angry"},{who:"B",say:"조금만요..zzz",feel:"happy"}],bang:"BOOM"},{place:"파출소",lines:[{who:"A",say:"연행합니다!",feel:"angry"},{who:"B",say:"여기 침대있죠?",feel:"happy"}],bang:"HA!"}]},
-        {title:"진짜 vs 가짜 닌자",concept:"가짜 닌자가 진짜보다 유명해짐",chars:[{id:"A",name:"진짜닌자",trait:"수십년 수련"},{id:"B",name:"가짜닌자",trait:"유튜브로 배움"}],scenes:[{place:"도장",lines:[{who:"A",say:"나야말로 진짜!",feel:"angry"},{who:"B",say:"구독자 100만",feel:"happy"}],bang:"POW"},{place:"도장",lines:[{who:"A",say:"기술 보여줄게",feel:"happy"},{who:"B",say:"편집하면 되죠",feel:"happy"}],bang:"ZAP"},{place:"도장",lines:[{who:"A",say:"저도 구독해요",feel:"sad"},{who:"B",say:"협업 어때요?",feel:"happy"}],bang:"HA!"}]},
-        {title:"지하철 초능력자",concept:"지하철에서만 초능력이 생김",chars:[{id:"A",name:"초능력자",trait:"지하철 한정"},{id:"B",name:"승객",trait:"눈치 빠름"}],scenes:[{place:"지하철",lines:[{who:"A",say:"나 날 수 있어!",feel:"happy"},{who:"B",say:"지하철 안에서?",feel:"surprised"}],bang:"WOW"},{place:"지하철",lines:[{who:"A",say:"짐도 들어줘!",feel:"happy"},{who:"B",say:"고마워요!",feel:"happy"}],bang:"POW"},{place:"지하철 밖",lines:[{who:"A",say:"어? 힘이 없어",feel:"surprised"},{who:"B",say:"다음 역까지요",feel:"happy"}],bang:"HA!"}]},
-        {title:"그림에서 탈출",concept:"그림 속 캐릭터가 현실로 나옴",chars:[{id:"A",name:"그림속인물",trait:"2D 한계 있음"},{id:"B",name:"화가",trait:"당황 연속"}],scenes:[{place:"미술관",lines:[{who:"A",say:"나 나갈 거야!",feel:"happy"},{who:"B",say:"그림이 말한다!",feel:"surprised"}],bang:"POW"},{place:"미술관",lines:[{who:"A",say:"3D가 신기해!",feel:"happy"},{who:"B",say:"다시 들어가요",feel:"angry"}],bang:"ZAP"},{place:"미술관",lines:[{who:"A",say:"밥이 맛있어!",feel:"happy"},{who:"B",say:"내 그림 망했어",feel:"sad"}],bang:"HA!"}]},
-        {title:"노래하는 신호등",concept:"신호등이 지시 대신 노래를 함",chars:[{id:"A",name:"신호등",trait:"노래가 하고 싶음"},{id:"B",name:"운전자",trait:"당황의 연속"}],scenes:[{place:"교차로",lines:[{who:"A",say:"♪ 멈추세요~ ♪",feel:"happy"},{who:"B",say:"뭐라고요?",feel:"surprised"}],bang:"POW"},{place:"교차로",lines:[{who:"A",say:"♪ 빨간불이죠 ♪",feel:"happy"},{who:"B",say:"사고 날 것 같아",feel:"angry"}],bang:"BOOM"},{place:"교차로",lines:[{who:"B",say:"그냥 빨간불!",feel:"angry"},{who:"A",say:"♪ 앙코르~ ♪",feel:"happy"}],bang:"HA!"}]},
-        {title:"요술봉 대출",concept:"마법 요술봉을 빌려주는 대출업체",chars:[{id:"A",name:"대출직원",trait:"이자가 문제"},{id:"B",name:"고객",trait:"마법 써보고 싶음"}],scenes:[{place:"대출창구",lines:[{who:"B",say:"요술봉 빌려요",feel:"happy"},{who:"A",say:"이자 100% 요",feel:"happy"}],bang:"POW"},{place:"거리",lines:[{who:"B",say:"마법 써봐야지",feel:"happy"},{who:"A",say:"쓸 때마다 이자",feel:"happy"}],bang:"ZAP"},{place:"대출창구",lines:[{who:"B",say:"갚을 게 없어요",feel:"angry"},{who:"A",say:"요술봉 대신요",feel:"happy"}],bang:"HA!"}]},
-        {title:"닭이 먼저냐",concept:"닭vs달걀 철학 토론이 싸움됨",chars:[{id:"A",name:"닭박사",trait:"닭이 먼저 주장"},{id:"B",name:"달걀박사",trait:"달걀이 먼저 주장"}],scenes:[{place:"토론장",lines:[{who:"A",say:"닭이 먼저야!",feel:"angry"},{who:"B",say:"달걀이 먼저!",feel:"angry"}],bang:"POW"},{place:"토론장",lines:[{who:"A",say:"증거 있어요?",feel:"happy"},{who:"B",say:"교수님도 몰라",feel:"surprised"}],bang:"BOOM"},{place:"토론장",lines:[{who:"A",say:"누가 옳은 거야",feel:"surprised"},{who:"B",say:"치킨이 먼저야",feel:"happy"}],bang:"HA!"}]},
-        {title:"오징어 프로그래머",concept:"오징어가 코딩을 배우기 시작함",chars:[{id:"A",name:"오징어",trait:"팔이 8개라 타이핑 빠름"},{id:"B",name:"개발팀장",trait:"뭐든 시킴"}],scenes:[{place:"사무실",lines:[{who:"B",say:"신입 왔군요",feel:"happy"},{who:"A",say:"코딩 배웠죠!",feel:"happy"}],bang:"POW"},{place:"사무실",lines:[{who:"B",say:"이게 8배 빠른가?",feel:"surprised"},{who:"A",say:"팔이 8개거든요",feel:"happy"}],bang:"WOW"},{place:"사무실",lines:[{who:"B",say:"야근 부탁해요",feel:"happy"},{who:"A",say:"팔 다 아파요",feel:"sad"}],bang:"HA!"}]},
-        {title:"비밀 운동 클럽",concept:"절대 운동 안 하는 척하는 비밀클럽",chars:[{id:"A",name:"회장",trait:"운동 숨김"},{id:"B",name:"신입",trait:"눈치가 빠름"}],scenes:[{place:"클럽",lines:[{who:"A",say:"운동 절대 안해",feel:"happy"},{who:"B",say:"근데 근육은요?",feel:"surprised"}],bang:"ZAP"},{place:"클럽",lines:[{who:"A",say:"태어난 거야",feel:"happy"},{who:"B",say:"새벽에 봤는데",feel:"surprised"}],bang:"POW"},{place:"클럽",lines:[{who:"A",say:"봤어요...?",feel:"surprised"},{who:"B",say:"저도 가입요",feel:"happy"}],bang:"HA!"}]},
-        {title:"도서관 귀신",concept:"떠들다 죽은 귀신이 도서관을 지킴",chars:[{id:"A",name:"귀신사서",trait:"조용히 집착"},{id:"B",name:"시끄러운 학생",trait:"목소리가 큼"}],scenes:[{place:"도서관",lines:[{who:"B",say:"야 거기 들어봐!",feel:"happy"},{who:"A",say:"쉿! 조용히!",feel:"angry"}],bang:"POW"},{place:"도서관",lines:[{who:"B",say:"귀신이잖아요!",feel:"surprised"},{who:"A",say:"시끄러워서 죽어",feel:"sad"}],bang:"ZAP"},{place:"도서관",lines:[{who:"B",say:"저도 그렇게요?",feel:"surprised"},{who:"A",say:"조용히 하세요",feel:"angry"}],bang:"HA!"}]},
-        {title:"반려 선인장",concept:"선인장이 주인 대신 집 지킴",chars:[{id:"A",name:"선인장",trait:"말은 못 하지만 함"},{id:"B",name:"도둑",trait:"집 털러 옴"}],scenes:[{place:"현관",lines:[{who:"B",say:"아무도 없네!",feel:"happy"},{who:"A",say:"(가시 세움)",feel:"angry"}],bang:"POW"},{place:"거실",lines:[{who:"B",say:"앗 따가워!!",feel:"surprised"},{who:"A",say:"(두 번째 가시)",feel:"angry"}],bang:"BOOM"},{place:"밖",lines:[{who:"B",say:"화분에 졌다니",feel:"sad"},{who:"A",say:"(득의양양)",feel:"happy"}],bang:"HA!"}]},
-        {title:"고장난 번역기",concept:"엉뚱하게 번역되는 번역기로 협상",chars:[{id:"A",name:"협상가",trait:"번역기 의존"},{id:"B",name:"외국인",trait:"한국어 공부 중"}],scenes:[{place:"회의실",lines:[{who:"A",say:"반갑습니다!",feel:"happy"},{who:"B",say:"치킨 좋아요?",feel:"surprised"}],bang:"ZAP"},{place:"회의실",lines:[{who:"A",say:"계약 합시다",feel:"happy"},{who:"B",say:"냉면 드실래요",feel:"surprised"}],bang:"POW"},{place:"회의실",lines:[{who:"B",say:"사인했어요!",feel:"happy"},{who:"A",say:"번역기 뭔 짓이야",feel:"surprised"}],bang:"HA!"}]},
-        {title:"신호 없는 우주",concept:"우주인이 지구 신호등에 당황함",chars:[{id:"A",name:"우주인",trait:"신호 개념 없음"},{id:"B",name:"경찰관",trait:"규정이 최우선"}],scenes:[{place:"횡단보도",lines:[{who:"A",say:"건너면 되죠!",feel:"happy"},{who:"B",say:"빨간불이에요!",feel:"angry"}],bang:"POW"},{place:"횡단보도",lines:[{who:"A",say:"별엔 없는데요",feel:"surprised"},{who:"B",say:"지구 법 따라요",feel:"angry"}],bang:"ZAP"},{place:"횡단보도",lines:[{who:"B",say:"신분증 내세요",feel:"angry"},{who:"A",say:"은하계 면허요",feel:"happy"}],bang:"HA!"}]},
-        {title:"만능 리모컨",concept:"인간까지 조종되는 리모컨 등장",chars:[{id:"A",name:"발명가",trait:"발명에 중독"},{id:"B",name:"아내",trait:"남편 조종 원함"}],scenes:[{place:"거실",lines:[{who:"A",say:"만능리모컨 완성!",feel:"happy"},{who:"B",say:"뭐가 되는데요?",feel:"surprised"}],bang:"WOW"},{place:"거실",lines:[{who:"A",say:"TV, 에어컨 등",feel:"happy"},{who:"B",say:"당신도 되나요?",feel:"happy"}],bang:"ZAP"},{place:"거실",lines:[{who:"A",say:"그건 아닌데...",feel:"surprised"},{who:"B",say:"설거지 버튼 찾아",feel:"happy"}],bang:"HA!"}]},
-        {title:"날씨 예보 실수",concept:"날씨 예보가 하나도 안 맞음",chars:[{id:"A",name:"기상캐스터",trait:"틀려도 당당"},{id:"B",name:"시청자",trait:"우산 들고 화남"}],scenes:[{place:"방송국",lines:[{who:"A",say:"내일은 맑음!",feel:"happy"},{who:"B",say:"폭우였잖아요!",feel:"angry"}],bang:"BOOM"},{place:"방송국",lines:[{who:"A",say:"70% 확률이요",feel:"happy"},{who:"B",say:"틀린 게 70%요",feel:"angry"}],bang:"POW"},{place:"방송국",lines:[{who:"B",say:"해고하세요!",feel:"angry"},{who:"A",say:"내일 맑대요",feel:"happy"}],bang:"HA!"}]},
-        {title:"복사기의 반란",concept:"복사기가 원하는 것만 복사함",chars:[{id:"A",name:"직원",trait:"마감 급박함"},{id:"B",name:"복사기",trait:"의지 있는 기계"}],scenes:[{place:"사무실",lines:[{who:"A",say:"보고서 복사해!",feel:"happy"},{who:"B",say:"싫은데요",feel:"angry"}],bang:"ZAP"},{place:"사무실",lines:[{who:"A",say:"왜 안 되는 거야",feel:"angry"},{who:"B",say:"치킨 쿠폰 줘요",feel:"happy"}],bang:"POW"},{place:"사무실",lines:[{who:"A",say:"이게 복사기야?",feel:"surprised"},{who:"B",say:"야근비도 주면",feel:"happy"}],bang:"HA!"}]},
-        {title:"좀비 헬스장",concept:"좀비가 건강해지려고 헬스장 다님",chars:[{id:"A",name:"좀비",trait:"건강 회복 목표"},{id:"B",name:"트레이너",trait:"뭐든 긍정적"}],scenes:[{place:"헬스장",lines:[{who:"A",say:"건강해지고 싶어",feel:"sad"},{who:"B",say:"잘 오셨어요!",feel:"happy"}],bang:"POW"},{place:"헬스장",lines:[{who:"B",say:"팔이 떨어지는데",feel:"surprised"},{who:"A",say:"원래 그래요",feel:"happy"}],bang:"ZAP"},{place:"헬스장",lines:[{who:"B",say:"효과 있을까요?",feel:"surprised"},{who:"A",say:"팔 다시 붙었어",feel:"happy"}],bang:"HA!"}]},
-        {title:"전설의 장바구니",concept:"이상한 걸 쌓아가는 마트 카트",chars:[{id:"A",name:"주부",trait:"계획 쇼핑"},{id:"B",name:"마트직원",trait:"상품 권유 귀신"}],scenes:[{place:"마트",lines:[{who:"A",say:"우유만 살 거야",feel:"happy"},{who:"B",say:"이건 어때요?",feel:"happy"}],bang:"POW"},{place:"마트",lines:[{who:"A",say:"그것도 필요해?",feel:"surprised"},{who:"B",say:"세일이잖아요!",feel:"happy"}],bang:"ZAP"},{place:"계산대",lines:[{who:"A",say:"우유는 어딨지?",feel:"surprised"},{who:"B",say:"30만원 나왔어요",feel:"happy"}],bang:"HA!"}]},
-        {title:"문어 피아니스트",concept:"문어가 피아노 8개를 동시에 침",chars:[{id:"A",name:"문어",trait:"팔 8개 활용"},{id:"B",name:"심사위원",trait:"기준이 엄격함"}],scenes:[{place:"공연장",lines:[{who:"A",say:"연주 시작할게요",feel:"happy"},{who:"B",say:"...팔이 8개?",feel:"surprised"}],bang:"WOW"},{place:"공연장",lines:[{who:"A",say:"피아노도 8대요",feel:"happy"},{who:"B",say:"규정 위반인데",feel:"angry"}],bang:"ZAP"},{place:"공연장",lines:[{who:"B",say:"1등입니다!",feel:"happy"},{who:"A",say:"먹물은 서비스",feel:"happy"}],bang:"HA!"}]},
-      ];
+// ══════════════════════════════════════════════
+// 레이아웃 (가상 픽셀 고정값)
+//
+// TITLE:
+// P2 영역 y=0~390
+// P2 라벨(뒤집힘) translateY=22 visual_y=22
+// 위쪽터치(뒤집힘) visual_y=70
+// RETRO y=185 (위쪽터치 하단70+10=80 → 간격 95px)
+// BREAK y=238
+// 2P BATTLE y=282
+// P1 영역 y=390~780
+// 먼저5점 y=315 (중앙선 위)
+// P1 라벨 y=470
+// 아래쪽터치 y=510
+//
+// GAME:
+// P2 score translateY=160 visual_y=160
+// P2 label local=-58 visual_y=218 (간격 13px)
+// P1 score y=620
+// P1 label y=682 (간격 17px)
+// ══════════════════════════════════════════════
+function draw(){
+const bg=ctx.createRadialGradient(GW/2,MID,10,GW/2,MID,GH);
+bg.addColorStop(0,'#0a0025');bg.addColorStop(1,'#040010');
+ctx.fillStyle=bg;ctx.fillRect(0,0,GW,GH);
+grid();
 
-      /* ── local startProduction (no API) ──────────────────────────────────── */
-      const lastIdxRef = useRef(-1);
-      const startProduction = async () => {
-        speaker.current = null;
-        setPhase("generating"); setStory(null); setSIdx(0);
-        setDIdx(-1); setPopup(null);
+// ── 타이틀 ──
+if(S==='TITLE'){
+for(let i=0;i<55;i++){
+const sx=(Math.sin(i*137.5)380+380)%GW, sy=(Math.cos(i137.5)760+760)%GH;
+ctx.fillStyle=rgba(200,200,255,${0.18+Math.sin(fc*0.05+i)*0.22});
+ctx.beginPath();ctx.arc(sx,sy,1.2,0,Math.PI2);ctx.fill();
+}
+ctx.fillStyle='rgba(255,45,106,0.07)';ctx.fillRect(0,0,GW,MID);
+ctx.fillStyle='rgba(0,212,255,0.07)';ctx.fillRect(0,MID,GW,MID);
+divLine();
 
-        await wait(900);
+// P2 안내 (상단, 뒤집힘)
+// translateY=22 → P2 at visual_y=22, 위쪽터치 at visual_y=70
+ctx.save();
+ctx.translate(GW/2, 22); ctx.rotate(Math.PI);
+T('P2', 0, 0, F.guide, C2, 10);
+T('위쪽 터치', 0, -48, F.guide2, 'rgba(255,45,106,0.85)');
+ctx.restore();
 
-        let idx;
-        do { idx = Math.floor(Math.random() * SCENARIOS.length); }
-        while (idx === lastIdxRef.current && SCENARIOS.length > 1);
-        lastIdxRef.current = idx;
+// 타이틀 (간격 확보: 위쪽터치 하단≈80, RETRO 상단≈166)
+T('RETRO', GW/2, 185, F.title, '#c77dff', 18);
+T('BREAK', GW/2, 238, F.title, '#c77dff', 18);
+T('2P BATTLE', GW/2, 282, F.sub, '#ff6bce');
 
-        setStory(SCENARIOS[idx]); setSIdx(0); setDIdx(-1); setPopup(null);
-        speaker.current = null; setPhase("playing");
-      };
+// 안내
+if(Math.floor(fc/30)%2===0)
+T('먼저 '+WIN_S+'점 승리!', GW/2, 315, 16, 'rgba(200,200,255,0.55)');
 
-      /* scene playback */
-      useEffect(() => {
-        if (phase !== "playing" || !story) return;
-        if (sIdx >= story.scenes.length) { setPhase("done"); return; }
+// P1 안내 (하단)
+T('P1', GW/2, 470, F.guide, C1, 10);
+T('아래쪽 터치', GW/2, 510, F.guide2, 'rgba(0,212,255,0.85)');
 
-        const sc = story.scenes[sIdx];
-        let dead = false;
+scanlines();return;
+}
 
-        const run = async () => {
-          setDIdx(-1); setPopup(null); speaker.current = null;
-          await wait(500); if (dead) return;
+// ── 게임 화면 ──
+divLine();
+bricks.forEach(drawBrick);
+parts.forEach(p=>{
+ctx.globalAlpha=Math.max(0,p.a);
+ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,Math.PI*2);ctx.fill();
+});
+ctx.globalAlpha=1;
+drawPaddle(p2,P2_Y,C2);drawPaddle(p1,P1_Y,C1);drawBall();
 
-          const bangText = sc.bang ?? null;
-          if (bangText) {
-            setPopup(bangText);
-            await wait(900); if (dead) return;
-            setPopup(null);
-            await wait(200); if (dead) return;
-          }
+// HUD — P2 점수 (위, 뒤집힘)
+// translateY=155: score at y=155, label(local=-42) at y=197
+ctx.save();
+ctx.translate(GW/2,155);ctx.rotate(Math.PI);
+T(p2.score, 0, 0, F.score, C2, 14);
+T('P2', 0, -42, F.label, 'rgba(255,45,106,0.8)');
+ctx.restore();
 
-          for (let i = 0; i < sc.lines.length; i++) {
-            if (dead) return;
-            speaker.current = sc.lines[i].who;
-            setDIdx(i);
-            await wait(3000);
-          }
-          if (dead) return;
-          speaker.current = null; setDIdx(-1);
-          await wait(400); if (dead) return;
-          setSIdx(n => n+1);
-        };
+// HUD — P1 점수 (아래)
+// score at y=625, label at y=667
+T(p1.score, GW/2, 625, F.score, C1, 14);
+T('P1', GW/2, 667, F.label, 'rgba(0,212,255,0.8)');
 
-        run();
-        return () => { dead = true; };
-      }, [sIdx, phase, story]);
+// 승점 도트
+const dr=9, dg=GW0.07, dw=(WIN_S-1)dg, dotX=GW/2-dw/2;
+for(let i=0;i<WIN_S;i++){
+const on=i<p2.score;
+ctx.beginPath();ctx.arc(dotX+idg,13,dr,0,Math.PI2);
+ctx.fillStyle=on?C2:'rgba(255,45,106,0.15)';
+ctx.shadowColor=on?C2:'transparent';ctx.shadowBlur=on?10:0;ctx.fill();
+}
+for(let i=0;i<WIN_S;i++){
+const on=i<p1.score;
+ctx.beginPath();ctx.arc(dotX+idg,GH-13,dr,0,Math.PI2);
+ctx.fillStyle=on?C1:'rgba(0,212,255,0.15)';
+ctx.shadowColor=on?C1:'transparent';ctx.shadowBlur=on?10:0;ctx.fill();
+}
+ctx.shadowBlur=0;
 
-      /* derived */
-      const currScene  = story?.scenes?.[sIdx] ?? null;
-      const currLine   = currScene?.lines?.[dIdx] ?? null;
-      const bubbleLeft = currLine?.who === "A";
+// 득점 플래시
+// P1: cy=480 → 점수(625) 훨씬 위에 표시
+// P2: cy=300 → 뒤집혀서 P2 존 상단에 표시
+if(flash.t>0){
+const who=flash.who,color=who===1?C1:C2;
+const cy=who===1?480:300;
+ctx.save();ctx.globalAlpha=flash.t/90;
+if(who===2){ctx.translate(GW/2,cy);ctx.rotate(Math.PI);ctx.translate(-GW/2,-cy);}
+T(who===1?'P1':'P2', GW/2, cy-38, F.flash, color, 16);
+T('득점!', GW/2, cy+32, F.flash2, color, 10);
+ctx.restore();
+}
 
-      const resetToIdle = () => {
-        speaker.current = null;
-        setPhase("idle"); setStory(null); setSIdx(0);
-        setDIdx(-1); setPopup(null);
-      };
-      const replayFromStart = () => {
-        speaker.current = null; setPopup(null);
-        setDIdx(-1); setSIdx(0); setPhase("playing");
-      };
+// READY
+if(S==='READY'){
+ctx.fillStyle='rgba(4,0,16,0.62)';ctx.fillRect(0,0,GW,GH);
+const t=Math.ceil(rdyT/30);
+if(rdyT>30) T(t, GW/2,MID,F.count, '#ffbe00',38);
+else T('GO!',GW/2,MID,Math.floor(F.count*0.7), '#00e676',38);
+}
 
-      return (
-        <div style={{width:"100%",height:"100vh",display:"flex",flexDirection:"column",background:"#0e0e1e",fontFamily:"Impact,'Arial Black',sans-serif"}}>
+// WIN
+if(S==='WIN'){
+const wc=winner==='P1'?C1:C2;
+ctx.fillStyle='rgba(4,0,16,0.88)';ctx.fillRect(0,0,GW,GH);
+T(winner, GW/2, 248, F.win, wc, 24);
+T('승리!', GW/2, 334, F.win2, wc, 16);
+T('최종 스코어', GW/2, 430, F.winSub, '#aaa');
+T('P2 '+p2.score+' : '+p1.score+' P1', GW/2, 470, F.winSc, '#fff');
+}
 
-          {/* header */}
-          <div style={{background:"#0e0e1e",borderBottom:"3px solid #FFE600",padding:"10px 18px",display:"flex",alignItems:"center",gap:"14px",flexShrink:0}}>
-            <span style={{fontSize:"22px"}}>🎬</span>
-            <span style={{color:"#FFE600",fontSize:"17px",letterSpacing:"2px"}}>AI 원스톱 애니메이션 스튜디오</span>
-            {story && (
-              <div style={{marginLeft:"auto",textAlign:"right"}}>
-                <div style={{color:"#FFE600",fontSize:"13px",fontFamily:"sans-serif",fontWeight:"bold"}}>{story.title}</div>
-                {story.concept && <div style={{color:"#aaa",fontSize:"11px",fontFamily:"sans-serif",marginTop:2}}>💡 {story.concept}</div>}
-              </div>
-            )}
-          </div>
+scanlines();
+}
 
-          {/* canvas */}
-          <div style={{flex:1,position:"relative",overflow:"hidden"}}>
-            <div ref={canvasWrap} style={{width:"100%",height:"100%"}} />
+function resizeCanvas(){
+const rw=window.innerWidth, rh=window.innerHeight;
+canvas.width=rw; canvas.height=rh;
+canvas.style.width=rw+'px'; canvas.style.height=rh+'px';
+ctx.setTransform(1,0,0,1,0,0);
+ctx.scale(rw/VW, rh/VH);
+}
+window.addEventListener('resize', resizeCanvas);
+document.addEventListener('fullscreenchange', resizeCanvas);
+document.addEventListener('webkitfullscreenchange', resizeCanvas);
 
-            {/* idle */}
-            {phase==="idle" && (
-              <Overlay>
-                <div style={{textAlign:"center",maxWidth:380,padding:"0 20px"}}>
-                  <div style={{background:"#FFE600",border:"4px solid #000",padding:"16px 32px",marginBottom:"20px",boxShadow:"6px 6px 0 #000",transform:"rotate(-2deg)"}}>
-                    <div style={{fontSize:"28px",color:"#000",letterSpacing:"3px"}}>🎬 AI STUDIO</div>
-                  </div>
-                  <Btn onClick={startProduction} bg="#e94560">🚀 지금 바로 제작!</Btn>
-                </div>
-              </Overlay>
-            )}
-
-            {phase==="generating" && (
-              <Overlay>
-                <div style={{textAlign:"center"}}>
-                  <div style={{fontSize:"52px",marginBottom:"20px",animation:"spin 1s linear infinite",display:"inline-block"}}>🎬</div>
-                  <div style={{color:"#FFE600",fontSize:"20px",letterSpacing:3,fontFamily:"Impact,sans-serif"}}>제작 중...</div>
-                  <div style={{display:"flex",gap:8,justifyContent:"center",marginTop:20}}>
-                    {[0,1,2].map(i => (
-                      <div key={i} style={{
-                        width:12, height:12, borderRadius:"50%",
-                        background:"#FFE600",
-                        animation:`bounce 0.8s ease-in-out ${i*0.2}s infinite alternate`,
-                      }} />
-                    ))}
-                  </div>
-                </div>
-              </Overlay>
-            )}
-
-
-
-
-            {/* scene label */}
-            {phase==="playing" && currScene && (
-              <div style={{position:"absolute",top:10,left:10,background:"rgba(0,0,0,0.7)",border:"2px solid #FFE600",color:"#FFE600",padding:"5px 14px",fontSize:"13px",letterSpacing:1,boxShadow:"2px 2px 0 #000"}}>
-                📍 {currScene.place}
-              </div>
-            )}
-
-            {/* progress dots */}
-            {phase==="playing" && story && (
-              <div style={{position:"absolute",top:14,right:14,display:"flex",gap:7}}>
-                {story.scenes.map((_,i) => (
-                  <div key={i} style={{width:11,height:11,borderRadius:"50%",background:i<sIdx?"#FFE600":i===sIdx?"#fff":"#444",border:"2px solid #000",transition:"background 0.3s"}} />
-                ))}
-              </div>
-            )}
-
-            {/* speech bubble */}
-            {phase==="playing" && currLine && (
-              <div key={`${sIdx}-${dIdx}`} style={{
-                position:"absolute", top:"22%",
-                ...(bubbleLeft?{left:"5%"}:{right:"5%"}),
-                background:"#fff", border:"3px solid #111",
-                borderRadius:"18px", padding:"11px 16px",
-                maxWidth:185, boxShadow:"4px 4px 0 #000",
-                fontFamily:"sans-serif",
-                animation:"popIn 0.18s cubic-bezier(.34,1.56,.64,1) both",
-                zIndex:10,
-              }}>
-                <div style={{fontSize:"11px",color:"#777",marginBottom:4}}>
-                  {currLine.who==="A"?story.chars[0]?.name:story.chars[1]?.name}
-                  &nbsp;{FACE[currLine.feel]||"😐"}
-                </div>
-                <div style={{fontSize:"15px",fontWeight:"bold",lineHeight:1.4,color:"#111"}}>{currLine.say}</div>
-                <div style={{position:"absolute",bottom:-14,...(bubbleLeft?{left:22}:{right:22}),width:0,height:0,borderLeft:"9px solid transparent",borderRight:"9px solid transparent",borderTop:"14px solid #111"}} />
-                <div style={{position:"absolute",bottom:-10,...(bubbleLeft?{left:24}:{right:24}),width:0,height:0,borderLeft:"7px solid transparent",borderRight:"7px solid transparent",borderTop:"11px solid #fff"}} />
-              </div>
-            )}
-
-            {/* comic bang */}
-            {popup !== null && (
-              <div style={{
-                position:"absolute", top:"22%", left:"50%",
-                transform:"translate(-50%,-50%) rotate(-10deg)",
-                fontSize:"70px", fontWeight:"900", color:"#FFE600",
-                textShadow:"5px 5px 0 #FF2200, 9px 9px 0 #000",
-                userSelect:"none", pointerEvents:"none",
-                fontFamily:"Impact,sans-serif", letterSpacing:3,
-                animation:"comicPop 0.15s ease-out both", zIndex:20,
-              }}>
-                {popup}!
-              </div>
-            )}
-
-            {/* name tags */}
-            {(phase==="playing"||phase==="done") && story && (
-              <>
-                <div style={{position:"absolute",bottom:14,left:"12%",color:"#FF5F5F",fontSize:"14px",letterSpacing:1,textShadow:"2px 2px 0 #000"}}>{story.chars[0]?.name}</div>
-                <div style={{position:"absolute",bottom:14,right:"12%",color:"#4A90E2",fontSize:"14px",letterSpacing:1,textShadow:"2px 2px 0 #000"}}>{story.chars[1]?.name}</div>
-              </>
-            )}
-
-            {/* done */}
-            {phase==="done" && (
-              <Overlay>
-                <div style={{textAlign:"center"}}>
-                  <div style={{background:"#FFE600",border:"4px solid #000",padding:"14px 32px",marginBottom:"18px",boxShadow:"6px 6px 0 #000",transform:"rotate(2deg)"}}>
-                    <div style={{fontSize:"32px",color:"#000"}}>🎉 완성!</div>
-                  </div>
-                  <div style={{color:"#FFE600",fontFamily:"sans-serif",fontSize:"15px",fontWeight:"bold",marginBottom:6}}>{story?.title}</div>
-                  {story?.concept && <div style={{color:"#aaa",fontFamily:"sans-serif",fontSize:"12px",marginBottom:"24px"}}>💡 {story.concept}</div>}
-                  <div style={{display:"flex",gap:14,justifyContent:"center"}}>
-                    <Btn bg="#22a06b" onClick={replayFromStart}>▶ 다시 보기</Btn>
-                    <Btn bg="#e94560" onClick={resetToIdle}>🔄 새 작품</Btn>
-                  </div>
-                </div>
-              </Overlay>
-            )}
-          </div>
-
-          <style>{`
-            @keyframes popIn { from{transform:scale(0.5);opacity:0} to{transform:scale(1);opacity:1} }
-            @keyframes comicPop { from{transform:translate(-50%,-50%) rotate(-10deg) scale(0.3);opacity:0} to{transform:translate(-50%,-50%) rotate(-10deg) scale(1);opacity:1} }
-            @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-            @keyframes bounce { from{transform:translateY(0);opacity:0.4} to{transform:translateY(-12px);opacity:1} }
-          `}</style>
-        </div>
-      );
-    }
-
-    /* mount */
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<Studio />);
-  </script>
-
-  <!-- Service Worker -->
-  <script>
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("sw.js")
-          .then(r => console.log("SW registered:", r.scope))
-          .catch(e => console.log("SW error:", e));
-      });
-    }
-  </script>
+function loop(){update();draw();requestAnimationFrame(loop);}
+loop();
+</script>
 </body>
 </html>
